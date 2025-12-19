@@ -1,0 +1,177 @@
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS likesports DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE likesports;
+
+-- 赛季表
+CREATE TABLE IF NOT EXISTS season (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(50) NOT NULL UNIQUE COMMENT '赛季代码：v1, v2, v3',
+    name VARCHAR(200) NOT NULL COMMENT '赛季名称',
+    prize_pool INT DEFAULT 0 COMMENT '奖金池金额（元）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='赛季表';
+
+-- 用户资料表
+CREATE TABLE IF NOT EXISTS user_profile (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    nickname VARCHAR(100) NOT NULL COMMENT '昵称',
+    avatar_url VARCHAR(500) COMMENT '头像URL',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户资料表';
+
+-- 为昵称添加唯一索引，避免重复用户
+ALTER TABLE user_profile ADD UNIQUE INDEX idx_nickname (nickname);
+
+-- 排行榜条目表
+CREATE TABLE IF NOT EXISTS leaderboard_entry (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    season_id BIGINT NOT NULL COMMENT '赛季ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    total_score INT NOT NULL DEFAULT 0 COMMENT '总出手数',
+    hit_count INT NOT NULL DEFAULT 0 COMMENT '命中数',
+    video_cover_url VARCHAR(500) COMMENT '视频封面URL',
+    video_url VARCHAR(500) DEFAULT NULL COMMENT '视频播放URL',
+    rank_manual INT COMMENT '手动排名（可选，用于并列排名）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (season_id) REFERENCES season(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user_profile(id) ON DELETE CASCADE,
+    INDEX idx_season_id (season_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='排行榜条目表';
+
+-- 插入赛季数据
+INSERT INTO season (code, name, prize_pool) VALUES
+('v1', '「三分球2分钟自投自抢」 周度挑战', 500),
+('v2', '「连续罚球命中」 周度挑战', 500),
+('v3', '「三分球2分钟自投自捡」月赛-当前奖金池3000元', 3000)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    prize_pool = VALUES(prize_pool);
+
+-- 清空现有用户和排行榜数据
+DELETE FROM leaderboard_entry;
+DELETE FROM user_profile;
+ALTER TABLE user_profile AUTO_INCREMENT = 1;
+ALTER TABLE leaderboard_entry AUTO_INCREMENT = 1;
+
+-- 插入用户数据（根据你提供的三个赛季的所有用户）
+INSERT INTO user_profile (nickname, avatar_url) VALUES
+-- v1赛季用户
+('六耳猕熊', 'https://download.like-sports.com/leaderboard/v1/lemx.jpg'),
+('y', 'https://download.like-sports.com/leaderboard/v1/y.jpg'),
+('虎叁歲', 'https://download.like-sports.com/leaderboard/v1/hss.jpg'),
+('！', 'https://download.like-sports.com/leaderboard/v1/t.jpg'),
+('🏀qiao', 'https://download.like-sports.com/leaderboard/v1/q.jpg'),
+('H', 'https://download.like-sports.com/leaderboard/v1/h.jpg'),
+('吴乾', 'https://download.like-sports.com/leaderboard/v1/wq.jpg'),
+('天使之翼FLY', 'https://download.like-sports.com/leaderboard/v1/fly.jpg'),
+('v老五', 'https://download.like-sports.com/leaderboard/v1/vlw.jpg'),
+('熊嫂', 'https://download.like-sports.com/leaderboard/v1/xs.jpg'),
+
+-- v2赛季新增用户
+('有球必应吴教练', 'https://download.like-sports.com/leaderboard/v1/wjl.jpg'),
+('Richard', 'https://download.like-sports.com/leaderboard/v1/richard.jpg'),
+('陈鹏辉', 'https://download.like-sports.com/leaderboard/v1/cph.jpg'),
+('T_MAC🏀🏀', 'https://download.like-sports.com/leaderboard/v1/tmac.jpg'),
+
+-- v3赛季用户
+('魏蔃', 'https://download.like-sports.com/leaderboard/v1/wq-2.jpg'),
+('少年', 'https://download.like-sports.com/leaderboard/v1/sn.jpg'),
+('李翰侨', 'https://download.like-sports.com/leaderboard/v1/lhq.jpg'),
+('王帅', 'https://download.like-sports.com/leaderboard/v1/ws-2.jpg'),
+('小宋同学', 'https://download.like-sports.com/leaderboard/v1/xstx.jpg'),
+('🇨🇳', 'https://download.like-sports.com/leaderboard/v1/hq.jpg'),
+('王鹏博NO1', 'https://download.like-sports.com/leaderboard/v1/wpb.jpg')
+ON DUPLICATE KEY UPDATE
+    avatar_url = VALUES(avatar_url);
+
+-- 插入v1赛季数据（三分球2分钟自投自抢）
+INSERT INTO leaderboard_entry (season_id, user_id, total_score, hit_count, video_cover_url, video_url, rank_manual) VALUES
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '六耳猕熊'), 20, 19, 'https://download.like-sports.com/leaderboard/v1/lemx.jpg', 'https://download.like-sports.com/leaderboard/v1/lemx.mp4', 1),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = 'y'), 19, 19, 'https://download.like-sports.com/leaderboard/v1/y.jpg', 'https://download.like-sports.com/leaderboard/v1/y-2.mp4', 2),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '虎叁歲'), 20, 17, 'https://download.like-sports.com/leaderboard/v1/hss.jpg', 'https://download.like-sports.com/leaderboard/v1/hss.mp4', 3),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '！'), 20, 16, 'https://download.like-sports.com/leaderboard/v1/t.jpg', 'https://download.like-sports.com/leaderboard/v1/t.mp4', 4),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '🏀qiao'), 21, 16, 'https://download.like-sports.com/leaderboard/v1/q.jpg', 'https://download.like-sports.com/leaderboard/v1/q-2.mp4', 4),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = 'H'), 20, 16, 'https://download.like-sports.com/leaderboard/v1/h.jpg', 'https://download.like-sports.com/leaderboard/v1/h.mp4', 4),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '吴乾'), 20, 16, 'https://download.like-sports.com/leaderboard/v1/wq.jpg', 'https://download.like-sports.com/leaderboard/v1/wq.mp4', 4),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '天使之翼FLY'), 18, 16, 'https://download.like-sports.com/leaderboard/v1/fly.jpg', 'https://download.like-sports.com/leaderboard/v1/fly-2.mp4', 4),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = 'v老五'), 19, 14, 'https://download.like-sports.com/leaderboard/v1/vlw.jpg', 'https://download.like-sports.com/leaderboard/v1/vlw-2.mp4', 9),
+((SELECT id FROM season WHERE code = 'v1'), (SELECT id FROM user_profile WHERE nickname = '熊嫂'), 18, 13, 'https://download.like-sports.com/leaderboard/v1/xs.jpg', 'https://download.like-sports.com/leaderboard/v1/xs.mp4', 10);
+
+-- 插入v2赛季数据（连续罚球命中）
+INSERT INTO leaderboard_entry (season_id, user_id, total_score, hit_count, video_cover_url, video_url, rank_manual) VALUES
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '六耳猕熊'), 60, 60, 'https://download.like-sports.com/leaderboard/v1/lemx.jpg', 'https://download.like-sports.com/leaderboard/v1/lemx-21.mp4', 1),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '吴乾'), 59, 59, 'https://download.like-sports.com/leaderboard/v1/wq.jpg', 'https://download.like-sports.com/leaderboard/v1/wq-21.mp4', 2),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = 'y'), 45, 45, 'https://download.like-sports.com/leaderboard/v1/y.jpg', 'https://download.like-sports.com/leaderboard/v1/y-21.mp4', 3),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '天使之翼FLY'), 37, 37, 'https://download.like-sports.com/leaderboard/v1/fly.jpg', 'https://download.like-sports.com/leaderboard/v1/fly-21.mp4', 4),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '🏀qiao'), 37, 37, 'https://download.like-sports.com/leaderboard/v1/q.jpg', 'https://download.like-sports.com/leaderboard/v1/q-22.mp4', 4),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '有球必应吴教练'), 34, 34, 'https://download.like-sports.com/leaderboard/v1/wjl.jpg', 'https://download.like-sports.com/leaderboard/v1/wjl-21.mp4', 6),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = 'Richard'), 32, 32, 'https://download.like-sports.com/leaderboard/v1/richard.jpg', 'https://download.like-sports.com/leaderboard/v1/richard-21.mp4', 7),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = '陈鹏辉'), 29, 29, 'https://download.like-sports.com/leaderboard/v1/cph.jpg', 'https://download.like-sports.com/leaderboard/v1/cph-22.mp4', 8),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = 'v老五'), 26, 26, 'https://download.like-sports.com/leaderboard/v1/vlw.jpg', 'https://download.like-sports.com/leaderboard/v1/vlw-21.mp4', 9),
+((SELECT id FROM season WHERE code = 'v2'), (SELECT id FROM user_profile WHERE nickname = 'T_MAC🏀🏀'), 23, 23, 'https://download.like-sports.com/leaderboard/v1/tmac.jpg', 'https://download.like-sports.com/leaderboard/v1/tmac-22.mp4', 10);
+
+-- 插入v3赛季数据（三分球2分钟自投自捡月赛）
+INSERT INTO leaderboard_entry (season_id, user_id, total_score, hit_count, video_cover_url, video_url, rank_manual) VALUES
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '魏蔃'), 23, 22, 'https://download.like-sports.com/leaderboard/v1/wq-2.jpg', 'https://download.like-sports.com/leaderboard/v1/wq-2-31.mp4', 1),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '少年'), 23, 21, 'https://download.like-sports.com/leaderboard/v1/sn.jpg', 'https://download.like-sports.com/leaderboard/v1/sn-32.mp4', 2),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '六耳猕熊'), 21, 20, 'https://download.like-sports.com/leaderboard/v1/lemx.jpg', 'https://download.like-sports.com/leaderboard/v1/lemx-31.mp4', 3),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '李翰侨'), 20, 20, 'https://download.like-sports.com/leaderboard/v1/lhq.jpg', 'https://download.like-sports.com/leaderboard/v1/lhq-32.mp4', 3),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '王帅'), 21, 20, 'https://download.like-sports.com/leaderboard/v1/ws-2.jpg', 'https://download.like-sports.com/leaderboard/v1/ws-2-31.mp4', 3),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '有球必应吴教练'), 20, 19, 'https://download.like-sports.com/leaderboard/v1/wjl.jpg', 'https://download.like-sports.com/leaderboard/v1/wjl-32.mp4', 6),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '🏀qiao'), 23, 19, 'https://download.like-sports.com/leaderboard/v1/q.jpg', 'https://download.like-sports.com/leaderboard/v1/q-34.mp4', 7),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '小宋同学'), 22, 19, 'https://download.like-sports.com/leaderboard/v1/xstx.jpg', 'https://download.like-sports.com/leaderboard/v1/xstx-31.mp4', 8),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '🇨🇳'), 22, 19, 'https://download.like-sports.com/leaderboard/v1/hq.jpg', 'https://download.like-sports.com/leaderboard/v1/hq-31.mp4', 9),
+((SELECT id FROM season WHERE code = 'v3'), (SELECT id FROM user_profile WHERE nickname = '王鹏博NO1'), 22, 19, 'https://download.like-sports.com/leaderboard/v1/wpb.jpg', 'https://download.like-sports.com/leaderboard/v1/wpb-31.mp4', 10);
+
+-- 验证数据插入结果
+SELECT
+    s.code as 赛季代码,
+    s.name as 赛季名称,
+    COUNT(*) as 记录数
+FROM leaderboard_entry le
+JOIN season s ON le.season_id = s.id
+GROUP BY s.id, s.code, s.name
+ORDER BY s.code;
+
+-- 查看各赛季前5名数据示例
+SELECT
+    s.code as 赛季代码,
+    s.name as 赛季名称,
+    le.rank_manual as 排名,
+    u.nickname as 昵称,
+    le.total_score as 出手数,
+    le.hit_count as 命中数,
+    CONCAT(FORMAT((le.hit_count/le.total_score)*100, 1), '%') as 命中率,
+    u.avatar_url as 头像,
+    le.video_cover_url as 视频封面,
+    le.video_url as 视频地址
+FROM leaderboard_entry le
+JOIN season s ON le.season_id = s.id
+JOIN user_profile u ON le.user_id = u.id
+WHERE s.code = 'v1'
+ORDER BY le.rank_manual
+LIMIT 5;
+
+-- 总记录数统计
+SELECT COUNT(*) as 总排行榜记录数 FROM leaderboard_entry;
+SELECT COUNT(*) as 总用户数 FROM user_profile;
+
+-- 查看所有赛季的所有数据
+SELECT
+    s.code as 赛季代码,
+    s.name as 赛季名称,
+    s.prize_pool as 奖金池,
+    le.rank_manual as 排名,
+    u.nickname as 昵称,
+    le.total_score as 出手数,
+    le.hit_count as 命中数,
+    CONCAT(FORMAT((le.hit_count/le.total_score)*100, 1), '%') as 命中率
+FROM leaderboard_entry le
+JOIN season s ON le.season_id = s.id
+JOIN user_profile u ON le.user_id = u.id
+ORDER BY s.code, le.rank_manual;
