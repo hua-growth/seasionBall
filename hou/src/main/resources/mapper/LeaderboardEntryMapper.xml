@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.yxh.mapper.LeaderboardEntryMapper">
+    <select id="findBySeasonCode" parameterType="string" resultType="com.yxh.entity.LeaderboardEntry">
+        SELECT le.* FROM leaderboard_entry le
+                             JOIN season s ON le.season_id = s.id
+        WHERE s.code = #{seasonCode}
+        ORDER BY IFNULL(le.rank_manual, 999999) ASC, le.total_score ASC
+    </select>
+
+    <select id="findBySeasonId" parameterType="long" resultType="com.yxh.entity.LeaderboardEntry">
+        SELECT * FROM leaderboard_entry
+        WHERE season_id = #{seasonId}
+        ORDER BY IFNULL(rank_manual, 999999) ASC, total_score ASC
+    </select>
+
+    <select id="findBySeasonIdAndUserId" resultType="com.yxh.entity.LeaderboardEntry">
+        SELECT * FROM leaderboard_entry
+        WHERE season_id = #{seasonId} AND user_id = #{userId}
+    </select>
+
+    <select id="findAllBySeasonId" parameterType="long" resultType="com.yxh.entity.LeaderboardEntry">
+        SELECT * FROM leaderboard_entry
+        WHERE season_id = #{seasonId}
+        ORDER BY hit_count DESC, total_score ASC
+    </select>
+
+    <insert id="insert" parameterType="com.yxh.entity.LeaderboardEntry" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO leaderboard_entry (season_id, user_id, total_score, hit_count, video_cover_url, video_url, rank_manual, created_at, updated_at)
+        VALUES (#{seasonId}, #{userId}, #{totalScore}, #{hitCount}, #{videoCoverUrl}, #{videoUrl}, #{rankManual}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.yxh.entity.LeaderboardEntry">
+        UPDATE leaderboard_entry
+        SET total_score = #{totalScore},
+            hit_count = #{hitCount},
+            video_cover_url = #{videoCoverUrl},
+            video_url = #{videoUrl},
+            rank_manual = #{rankManual},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateRankManual">
+        UPDATE leaderboard_entry
+        SET rank_manual = #{rankManual},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

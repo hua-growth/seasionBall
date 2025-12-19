@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>「三分球2分钟自投自抢」 挑战总榜</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+<script>
+tailwind.config = {
+theme: {
+extend: {
+colors: {
+primary: '#3B82F6',
+secondary: '#10B981'
+},
+borderRadius: {
+'none': '0px',
+'sm': '4px',
+DEFAULT: '8px',
+'md': '12px',
+'lg': '16px',
+'xl': '20px',
+'2xl': '24px',
+'3xl': '32px',
+'full': '9999px',
+'button': '8px'
+}
+}
+}
+}
+</script>
+<style>
+:where([class^="ri-"])::before {
+content: "\f3c2";
+}
+.gold-rank {
+background: linear-gradient(135deg, #FFD700, #FFA500);
+color: white;
+}
+.silver-rank {
+background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+color: white;
+}
+.bronze-rank {
+background: linear-gradient(135deg, #CD7F32, #B8860B);
+color: white;
+}
+.video-overlay {
+background: rgba(0, 0, 0, 0.6);
+transition: all 0.3s ease;
+}
+.video-thumbnail:hover .video-overlay {
+background: rgba(0, 0, 0, 0.8);
+}
+.modal {
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0, 0, 0, 0.9);
+z-index: 1000;
+}
+.modal.active {
+display: flex;
+align-items: center;
+justify-content: center;
+}
+.score-highlight {
+background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+}
+#season-dropdown.hidden {
+display: none;
+}
+#season-dropdown button {
+width: 100%;
+text-align: left;
+padding: 0.75rem 1rem;
+transition: background-color 0.2s;
+}
+#season-dropdown button:hover {
+background-color: #f9fafb;
+}
+#season-dropdown button.active {
+background-color: #eff6ff;
+color: #2563eb;
+font-weight: 600;
+}
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-4xl mx-auto px-4 py-6">
+<div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+<div class="text-center mb-4">
+<div class="relative inline-block">
+<button id="season-selector-btn" onclick="toggleSeasonDropdown(event)" class="flex items-center space-x-3 text-lg md:text-3xl font-bold text-gray-900 bg-gray-50 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors" style="display: none;">
+<span id="activity-title">加载中...</span>
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-arrow-down-s-line text-2xl"></i>
+</div>
+</button>
+<h1 id="activity-title-static" class="text-lg md:text-3xl font-bold text-gray-900">加载中...</h1>
+<div id="season-dropdown" class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 hidden">
+<div class="py-2">
+<!-- 动态加载期数列表 -->
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 排行榜容器 - 动态加载 -->
+<div id="leaderboard-container" class="space-y-4">
+<!-- 加载中 -->
+<div id="loading" class="text-center py-10">
+<div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+<p class="mt-4 text-gray-600">加载排行榜数据中...</p>
+</div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg p-6 mt-8 text-center">
+<div class="mb-4">
+<img src="https://download.like-sports.com/leaderboard/v1/wechat.jpeg"
+alt="来氪小子企业微信二维码"
+class="w-48 h-48 mx-auto rounded-lg shadow-md">
+</div>
+<p class="text-gray-600 text-sm md:text-base leading-relaxed">
+长按添加 LikeSports 官方微信"来氪小子"，报名参加挑战！
+</p>
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg p-6 mt-6 text-center">
+<h3 class="text-lg md:text-xl font-bold text-gray-900 mb-6">下载 LikeSports App</h3>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button onclick="downloadiOS()" class="flex items-center justify-center space-x-3 bg-black text-white px-6 py-3 rounded-button font-medium hover:bg-gray-800 transition-colors !rounded-button whitespace-nowrap">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-apple-fill text-xl"></i>
+</div>
+<span>App Store 下载</span>
+</button>
+<button onclick="downloadAndroid()" class="flex items-center justify-center space-x-3 bg-green-600 text-white px-6 py-3 rounded-button font-medium hover:bg-green-700 transition-colors !rounded-button whitespace-nowrap">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-android-fill text-xl"></i>
+</div>
+<span>安卓官方下载</span>
+</button>
+</div>
+</div>
+</div>
+
+<div id="videoModal" class="modal">
+<div class="relative w-full max-w-4xl mx-4">
+<div class="absolute top-4 right-4 z-10">
+<button onclick="closeVideoModal()" class="w-10 h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-close-line text-xl"></i>
+</div>
+</button>
+</div>
+<video id="modalVideo" class="w-full rounded-lg" controls>
+<source src="" type="video/mp4">
+您的浏览器不支持视频播放。
+</video>
+</div>
+</div>
+
+<script>
+// 从URL参数获取season
+const urlParams = new URLSearchParams(window.location.search);
+let currentSeason = urlParams.get('season');
+let allSeasons = [];
+let defaultSeason = 'v3'; // 临时默认值
+
+// API基础URL
+const API_BASE = 'http://localhost:8080/api';
+
+// 页面加载时先加载配置，再加载期数列表和排行榜
+document.addEventListener('DOMContentLoaded', function() {
+loadSeasons();
+});
+
+// 加载所有期数
+function loadSeasons() {
+fetch(`${API_BASE}/seasons`)
+.then(function(response) {
+if (!response.ok) {
+throw new Error('Failed to load seasons');
+}
+return response.json();
+})
+.then(function(apiResponse) {
+if (apiResponse.code === 200 && apiResponse.data) {
+allSeasons = apiResponse.data;
+if (allSeasons.length > 0) {
+// 如果没有URL参数，使用第一个期数
+if (!currentSeason) {
+currentSeason = allSeasons[0].code;
+}
+renderSeasonSelector();
+loadSeasonInfo();
+}
+loadLeaderboard();
+} else {
+// 如果没有期数数据，直接加载排行榜（使用默认标题）
+loadLeaderboard();
+}
+})
+.catch(function(error) {
+console.error('Error loading seasons:', error);
+loadLeaderboard();
+});
+}
+
+// 加载当前期数信息并更新标题
+function loadSeasonInfo() {
+const currentSeasonData = allSeasons.find(s => s.code === currentSeason);
+if (currentSeasonData) {
+updateTitle(currentSeasonData.name);
+} else {
+updateTitle('排行榜');
+}
+}
+
+// 更新标题
+function updateTitle(title) {
+const titleElement = document.getElementById('activity-title');
+const titleStaticElement = document.getElementById('activity-title-static');
+if (titleElement) {
+titleElement.textContent = title;
+}
+if (titleStaticElement) {
+titleStaticElement.textContent = title;
+}
+// 同时更新页面title
+document.title = title;
+}
+
+// 渲染期数选择器
+function renderSeasonSelector() {
+if (allSeasons.length <= 1) {
+// 只有一个期数时不显示选择器，显示静态标题
+document.getElementById('activity-title-static').style.display = 'block';
+return;
+}
+
+const selectorBtn = document.getElementById('season-selector-btn');
+const staticTitle = document.getElementById('activity-title-static');
+const dropdownContainer = document.getElementById('season-dropdown');
+
+if (!selectorBtn || !dropdownContainer) return;
+
+// 隐藏静态标题，显示可点击按钮
+staticTitle.style.display = 'none';
+selectorBtn.style.display = 'flex';
+
+// 创建下拉列表
+var dropdownHTML = '';
+allSeasons.forEach(function(season) {
+var isActive = season.code === currentSeason;
+var btnClass = isActive ? 'active text-sm md:text-base' : 'text-sm md:text-base';
+
+dropdownHTML += '<button onclick="switchSeason(\'' + escapeHtml(season.code) + '\')" class="' + btnClass + '">';
+dropdownHTML += escapeHtml(season.name);
+dropdownHTML += '</button>';
+});
+
+dropdownContainer.querySelector('.py-2').innerHTML = dropdownHTML;
+}
+
+// 切换期数
+function switchSeason(seasonCode) {
+if (seasonCode === currentSeason) {
+// 如果点击的是当前期数，只关闭下拉菜单
+const dropdown = document.getElementById('season-dropdown');
+if (dropdown) {
+dropdown.classList.add('hidden');
+}
+return;
+}
+
+currentSeason = seasonCode;
+
+// 更新URL参数
+const newUrl = window.location.pathname + '?season=' + seasonCode;
+window.history.pushState({season: seasonCode}, '', newUrl);
+
+// 关闭下拉菜单
+const dropdown = document.getElementById('season-dropdown');
+if (dropdown) {
+dropdown.classList.add('hidden');
+}
+
+// 重新加载数据
+loadSeasonInfo();
+loadLeaderboard();
+renderSeasonSelector();
+}
+
+// 切换下拉菜单显示状态
+function toggleSeasonDropdown(event) {
+if (event) {
+event.stopPropagation();
+}
+const dropdown = document.getElementById('season-dropdown');
+if (dropdown) {
+dropdown.classList.toggle('hidden');
+}
+}
+
+// 点击其他地方关闭下拉菜单
+document.addEventListener('click', function(e) {
+const dropdown = document.getElementById('season-dropdown');
+const btn = document.getElementById('season-selector-btn');
+if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+dropdown.classList.add('hidden');
+}
+});
+
+// 获取排行榜数据
+function loadLeaderboard() {
+const container = document.getElementById('leaderboard-container');
+const loading = document.getElementById('loading');
+
+fetch(`${API_BASE}/leaderboard?seasonCode=${currentSeason}`)
+.then(function(response) {
+if (!response.ok) {
+throw new Error('Failed to load leaderboard data');
+}
+return response.json();
+})
+.then(function(apiResponse) {
+if (apiResponse.code === 200 && apiResponse.data) {
+renderLeaderboard(apiResponse.data.leaderboard);
+} else {
+showError('数据格式错误: ' + (apiResponse.message || '未知错误'));
+}
+})
+.catch(function(error) {
+console.error('Error loading leaderboard:', error);
+showError('加载排行榜数据失败，请稍后重试');
+});
+}
+
+// 渲染排行榜
+function renderLeaderboard(entries) {
+const container = document.getElementById('leaderboard-container');
+const loading = document.getElementById('loading');
+
+if (loading) {
+loading.style.display = 'none';
+}
+
+if (!entries || entries.length === 0) {
+container.innerHTML = '<div class="text-center py-10 text-gray-500">暂无排行榜数据</div>';
+return;
+}
+
+// 清空容器
+container.innerHTML = '';
+
+// 为每个条目创建HTML
+entries.forEach(function(entry) {
+const entryDiv = document.createElement('div');
+entryDiv.className = 'bg-white rounded-xl shadow-md p-3 md:p-4 hover:shadow-lg transition-shadow';
+
+const rankClass = getRankClass(entry.rankManual);
+const rankBadge = getRankBadge(entry.rankManual, rankClass);
+// 判断是否使用高亮样式（前3名）
+const scoreClass = entry.rankManual <= 3 ? 'score-highlight' : 'text-gray-700';
+
+// 计算命中率
+const hitRate = entry.totalScore > 0 ? ((entry.hitCount / entry.totalScore) * 100).toFixed(1) : 0;
+
+entryDiv.innerHTML =
+'<div class="flex items-center space-x-2 md:space-x-4">' +
+'<div class="flex-shrink-0">' +
+rankBadge +
+'</div>' +
+'<div class="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">' +
+'<img src="' + escapeHtml(entry.avatarUrl || 'https://via.placeholder.com/48?text=用户') + '" ' +
+'alt="' + escapeHtml(entry.nickname) + '" ' +
+'class="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover object-top">' +
+'<div class="flex-1 min-w-0">' +
+'<h3 class="font-semibold text-gray-900 truncate text-sm md:text-base">' +
+escapeHtml(entry.nickname) +
+'</h3>' +
+'<div class="text-sm text-gray-500 mt-0.5">命中率: ' + hitRate + '%</div>' +
+'</div>' +
+'</div>' +
+'<div class="flex items-center space-x-2 md:space-x-4">' +
+'<div class="text-center">' +
+'<div class="text-lg md:text-2xl font-bold ' + scoreClass + '">' +
+    entry.totalScore + '中' + entry.hitCount +
+'</div>' +
+'</div>' +
+'<div class="video-thumbnail relative w-16 h-10 md:w-24 md:h-14 rounded-lg overflow-hidden cursor-pointer" ' +
+'onclick="openVideoModal(\'' + getVideoUrl(entry) + '\')">' +
+'<img src="' + escapeHtml(entry.videoCoverUrl || 'https://via.placeholder.com/110x62?text=视频') + '" ' +
+'alt="比赛视频" ' +
+'class="w-full h-full object-cover object-top">' +
+'<div class="video-overlay absolute inset-0 flex items-center justify-center">' +
+'<div class="w-4 h-4 md:w-6 md:h-6 flex items-center justify-center">' +
+'<i class="ri-play-fill text-white text-sm md:text-lg"></i>' +
+'</div>' +
+'</div>' +
+'</div>' +
+'</div>' +
+'</div>';
+
+container.appendChild(entryDiv);
+});
+}
+
+// 获取视频URL
+function getVideoUrl(entry) {
+if (entry.videoUrl) {
+return entry.videoUrl;
+}
+
+// 如果没有videoUrl，尝试从封面URL构造
+const baseUrl = entry.videoCoverUrl || '';
+const possibleExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv'];
+let videoUrl = '';
+
+for (const ext of possibleExtensions) {
+if (baseUrl.includes('.jpg')) {
+videoUrl = baseUrl.replace('.jpg', ext);
+break;
+} else if (baseUrl.includes('.jpeg')) {
+videoUrl = baseUrl.replace('.jpeg', ext);
+break;
+} else if (baseUrl.includes('.png')) {
+videoUrl = baseUrl.replace('.png', ext);
+break;
+}
+}
+
+// 如果没有找到合适的替换，使用默认视频
+if (!videoUrl) {
+videoUrl = 'https://download.like-sports.com/leaderboard/v1/sample-video.mp4';
+}
+
+return videoUrl;
+}
+
+// 获取排名样式类
+function getRankClass(rank) {
+if (rank === 1) return 'gold-rank';
+if (rank === 2) return 'silver-rank';
+if (rank === 3) return 'bronze-rank';
+return 'bg-gray-100 text-gray-700';
+}
+
+// 获取排名徽章HTML
+function getRankBadge(rank, rankClass) {
+return '<div class="' + rankClass + ' w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-sm md:text-lg">' +
+rank +
+'</div>';
+}
+
+// 显示错误信息
+function showError(message) {
+const container = document.getElementById('leaderboard-container');
+const loading = document.getElementById('loading');
+
+if (loading) {
+loading.style.display = 'none';
+}
+
+container.innerHTML =
+'<div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">' +
+'<p class="text-red-600">' + escapeHtml(message) + '</p>' +
+'<button onclick="location.reload()" ' +
+'class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">' +
+'重新加载' +
+'</button>' +
+'</div>';
+}
+
+// HTML转义函数
+function escapeHtml(text) {
+if (!text) return '';
+var map = {
+'&': '&amp;',
+'<': '&lt;',
+'>': '&gt;',
+'"': '&quot;',
+"'": '&#039;'
+};
+return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// 视频弹窗相关
+function openVideoModal(videoUrl) {
+const modal = document.getElementById('videoModal');
+const video = document.getElementById('modalVideo');
+if (!modal || !video) {
+console.error('Modal elements not found');
+return;
+}
+video.src = videoUrl || '';
+modal.classList.add('active');
+video.play().catch(function(error) {
+console.log('Video play failed:', error);
+});
+}
+
+function closeVideoModal() {
+const modal = document.getElementById('videoModal');
+const video = document.getElementById('modalVideo');
+if (modal && video) {
+modal.classList.remove('active');
+video.pause();
+video.currentTime = 0;
+}
+}
+
+// 添加键盘事件监听
+document.addEventListener('keydown', function(e) {
+if (e.key === 'Escape') {
+closeVideoModal();
+}
+});
+
+// 点击模态框外部关闭
+const videoModal = document.getElementById('videoModal');
+if (videoModal) {
+videoModal.addEventListener('click', function(e) {
+if (e.target === this) {
+closeVideoModal();
+}
+});
+}
+
+// 下载相关函数
+function downloadiOS() {
+const appStoreUrl = 'https://apps.apple.com/app/like-sports/id6742750297';
+// 检测是否在微信中
+const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+if (isWeChat && isIOS) {
+// 在微信 iOS 中，无法直接跳转，需要引导用户
+copyToClipboard(appStoreUrl);
+showNotification('已复制 App Store 链接，请点击右上角"..."选择"在浏览器中打开"，然后粘贴链接即可下载');
+} else if (isMobile) {
+// 非微信环境下的移动设备，直接跳转
+window.location.href = appStoreUrl;
+} else {
+// 桌面浏览器，新窗口打开
+window.open(appStoreUrl, '_blank');
+}
+}
+
+function downloadAndroid() {
+const downloadUrl = 'https://download.like-sports.com/app/official.apk';
+copyToClipboard(downloadUrl);
+showNotification('已复制下载链接，请打开手机浏览器下载安装');
+}
+
+function copyToClipboard(text) {
+if (navigator.clipboard && window.isSecureContext) {
+navigator.clipboard.writeText(text).catch(function(err) {
+console.error('复制失败', err);
+fallbackCopyTextToClipboard(text);
+});
+} else {
+fallbackCopyTextToClipboard(text);
+}
+}
+
+function fallbackCopyTextToClipboard(text) {
+const textArea = document.createElement('textarea');
+textArea.value = text;
+textArea.style.position = 'fixed';
+textArea.style.left = '-999999px';
+textArea.style.top = '-999999px';
+document.body.appendChild(textArea);
+textArea.focus();
+textArea.select();
+try {
+document.execCommand('copy');
+} catch (err) {
+console.error('复制失败', err);
+}
+document.body.removeChild(textArea);
+}
+
+function showNotification(message) {
+const notification = document.createElement('div');
+notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg z-50 text-sm';
+notification.textContent = message;
+document.body.appendChild(notification);
+setTimeout(function() {
+if (notification && notification.parentNode) {
+notification.parentNode.removeChild(notification);
+}
+}, 3000);
+}
+</script>
+</body>
+</html>
