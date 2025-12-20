@@ -1,0 +1,31 @@
+# 服务器配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# 数据源配置
+spring:
+  datasource:
+    # 核心修改：添加 allowPublicKeyRetrieval=true 参数
+    url: jdbc:mysql://localhost:3306/likesports?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.yxh.entity
+  configuration:
+    # 关键配置：开启下划线转驼峰
+    map-underscore-to-camel-case: true
+
+  # Jackson配置
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+# 日志配置
+logging:
+  level:
+    com.yxh: DEBUG
