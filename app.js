@@ -1,265 +1,275 @@
-const { createApp, ref, onMounted, onUnmounted } = Vue;
+const { createApp, ref, computed, onMounted } = Vue;
 
+// 管理后台（仅用于简单维护榜单，不做真实权限控制）
 createApp({
     setup() {
-        // 弹窗相关数据
-        const showVideoModal = ref(false);
-        const currentVideoUrl = ref('');
-        const currentVideoTitle = ref('');
-        
-        // 其他数据
-        const seasons = ref([]);
-        const selectedSeason = ref('v3');
-        const leaderboard = ref([]);
-        const currentSeason = ref(null);
-        const loading = ref(false);
-        const error = ref('');
-        
-        // 引用通知元素
-        const notification = ref(null);
-        
-        // API基础URL
         const API_BASE = 'http://localhost:8080/api';
-        
-        // 方法
+
+        // 赛季 & 榜单数据
+        const seasons = ref([]);
+        const selectedSeasonCode = ref('');
+        const leaderboard = ref([]);
+
+        // 表单数据
+        const newSeason = ref({
+            code: '',
+            name: ''
+        });
+
+        const newEntry = ref({
+            seasonCode: '',
+            nickname: '',
+            avatarUrl: '',
+            totalScore: null,
+            hitCount: null,
+            videoCoverUrl: '',
+            videoUrl: ''
+        });
+
+        // 状态
+        const loadingSeasons = ref(false);
+        const loadingEntries = ref(false);
+        const saving = ref(false);
+        const error = ref('');
+        const success = ref('');
+
+        const currentSeasonName = computed(() => {
+            const s = seasons.value.find(item => item.code === selectedSeasonCode.value);
+            return s ? s.name : '';
+        });
+
+        const clearMessageLater = () => {
+            if (!success.value && !error.value) return;
+            setTimeout(() => {
+                success.value = '';
+                error.value = '';
+            }, 3000);
+        };
+
         const loadSeasons = async () => {
             try {
-                loading.value = true;
-                const response = await axios.get(`${API_BASE}/seasons`);
-                
-                if (response.data.code === 200) {
-                    seasons.value = response.data.data;
-                    
-                    // 如果没有选择赛季，选择第一个
-                    if (seasons.value.length > 0 && !selectedSeason.value) {
-                        selectedSeason.value = seasons.value[0].code;
+                loadingSeasons.value = true;
+                const resp = await axios.get(`${API_BASE}/seasons`);
+                if (resp.data.code === 200) {
+                    seasons.value = resp.data.data || [];
+                    if (!selectedSeasonCode.value && seasons.value.length > 0) {
+                        selectedSeasonCode.value = seasons.value[0].code;
+                        newEntry.value.seasonCode = selectedSeasonCode.value;
+                        await loadLeaderboard();
                     }
-                    
-                    // 加载排行榜
-                    await loadLeaderboard();
                 } else {
-                    error.value = '加载赛季数据失败: ' + response.data.message;
+                    error.value = '加载赛季失败：' + (resp.data.message || '');
                 }
-            } catch (err) {
-                console.error('加载赛季数据出错:', err);
-                error.value = '加载数据失败，请检查网络连接或稍后重试';
+            } catch (e) {
+                console.error(e);
+                error.value = '加载赛季失败，请检查后端服务';
             } finally {
-                loading.value = false;
+                loadingSeasons.value = false;
+                clearMessageLater();
             }
         };
-        
+
         const loadLeaderboard = async () => {
+            if (!selectedSeasonCode.value) {
+                leaderboard.value = [];
+                return;
+            }
             try {
-                loading.value = true;
-                error.value = '';
-                
-                const response = await axios.get(`${API_BASE}/leaderboard`, {
-                    params: {
-                        seasonCode: selectedSeason.value
-                    }
+                loadingEntries.value = true;
+                const resp = await axios.get(`${API_BASE}/leaderboard`, {
+                    params: { seasonCode: selectedSeasonCode.value }
                 });
-                
-                if (response.data.code === 200) {
-                    const data = response.data.data;
-                    currentSeason.value = data.season;
-                    leaderboard.value = data.leaderboard;
+                if (resp.data.code === 200 && resp.data.data) {
+                    leaderboard.value = resp.data.data.leaderboard || [];
                 } else {
-                    error.value = '加载排行榜数据失败: ' + response.data.message;
+                    error.value = '加载排行榜失败：' + (resp.data.message || '');
                     leaderboard.value = [];
                 }
-            } catch (err) {
-                console.error('加载排行榜数据出错:', err);
-                error.value = '加载排行榜失败，请检查网络连接';
+            } catch (e) {
+                console.error(e);
+                error.value = '加载排行榜失败，请检查后端服务';
                 leaderboard.value = [];
             } finally {
-                loading.value = false;
+                loadingEntries.value = false;
+                clearMessageLater();
             }
         };
-        
+
+        const selectSeason = async (code) => {
+            if (selectedSeasonCode.value === code) return;
+            selectedSeasonCode.value = code;
+            newEntry.value.seasonCode = code;
+            await loadLeaderboard();
+        };
+
+        const createSeason = async () => {
+            if (!newSeason.value.code || !newSeason.value.name) {
+                error.value = '请完整填写赛季编码和名称';
+                clearMessageLater();
+                return;
+            }
+            try {
+                saving.value = true;
+                error.value = '';
+                success.value = '';
+                const payload = {
+                    code: newSeason.value.code.trim(),
+                    name: newSeason.value.name.trim()
+                };
+                const resp = await axios.post(`${API_BASE}/seasons`, payload);
+                if (resp.data.code === 200) {
+                    success.value = '新赛季创建成功';
+                    newSeason.value.code = '';
+                    newSeason.value.name = '';
+                    await loadSeasons();
+                } else {
+                    error.value = resp.data.message || '创建赛季失败';
+                }
+            } catch (e) {
+                console.error(e);
+                error.value = (e.response && e.response.data && e.response.data.message) || '创建赛季失败';
+            } finally {
+                saving.value = false;
+                clearMessageLater();
+            }
+        };
+
+        const saveEntry = async () => {
+            if (!selectedSeasonCode.value) {
+                error.value = '请先选择一个赛季';
+                clearMessageLater();
+                return;
+            }
+            if (!newEntry.value.nickname || newEntry.value.totalScore == null || newEntry.value.hitCount == null) {
+                error.value = '请至少填写昵称、总出手数和命中数';
+                clearMessageLater();
+                return;
+            }
+
+            try {
+                saving.value = true;
+                error.value = '';
+                success.value = '';
+                const payload = {
+                    seasonCode: selectedSeasonCode.value,
+                    nickname: newEntry.value.nickname.trim(),
+                    avatarUrl: newEntry.value.avatarUrl || null,
+                    totalScore: Number(newEntry.value.totalScore),
+                    hitCount: Number(newEntry.value.hitCount),
+                    videoCoverUrl: newEntry.value.videoCoverUrl || null,
+                    videoUrl: newEntry.value.videoUrl || null
+                };
+
+                const resp = await axios.post(`${API_BASE}/leaderboard/entry`, payload);
+                if (resp.data.code === 200) {
+                    success.value = resp.data.data || '保存成功';
+                    // 清理除赛季代码外的表单
+                    newEntry.value.nickname = '';
+                    newEntry.value.avatarUrl = '';
+                    newEntry.value.totalScore = null;
+                    newEntry.value.hitCount = null;
+                    newEntry.value.videoCoverUrl = '';
+                    newEntry.value.videoUrl = '';
+                    await loadLeaderboard();
+                } else {
+                    error.value = resp.data.message || '保存失败';
+                }
+            } catch (e) {
+                console.error(e);
+                const msg = e.response && e.response.data && e.response.data.message;
+                error.value = msg || '保存失败，请检查填写内容';
+            } finally {
+                saving.value = false;
+                clearMessageLater();
+            }
+        };
+
         const calculateHitRate = (entry) => {
-            if (!entry.totalScore || entry.totalScore === 0) return 0;
-            const rate = (entry.hitCount / entry.totalScore * 100);
+            if (!entry.totalScore || entry.totalScore === 0) return '0.0';
+            const rate = (entry.hitCount / entry.totalScore) * 100;
             return rate.toFixed(1);
         };
-        
-        const getRankClass = (rank) => {
-            if (rank === 1) return 'rank-1';
-            if (rank === 2) return 'rank-2';
-            if (rank === 3) return 'rank-3';
-            return 'rank-other';
-        };
-        
-        const getRankDisplay = (rank) => {
-            return rank;
-        };
-        
-        // 打开视频弹窗
-        const openVideoModal = (entry) => {
-            // 假设视频URL存储在entry的videoUrl属性中
-            // 如果没有videoUrl，可以根据封面URL构造或者使用默认视频
-            if (entry.videoUrl) {
-                currentVideoUrl.value = entry.videoUrl;
-            } else {
-                // 如果API没有返回videoUrl，这里可以构造一个示例视频
-                // 或者使用封面URL的变体
-                const baseUrl = entry.videoCoverUrl || '';
-                // 尝试多种可能的视频格式
-                const possibleExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv'];
-                let videoUrl = '';
-                
-                for (const ext of possibleExtensions) {
-                    if (baseUrl.includes('.jpg')) {
-                        videoUrl = baseUrl.replace('.jpg', ext);
-                        break;
-                    } else if (baseUrl.includes('.jpeg')) {
-                        videoUrl = baseUrl.replace('.jpeg', ext);
-                        break;
-                    } else if (baseUrl.includes('.png')) {
-                        videoUrl = baseUrl.replace('.png', ext);
-                        break;
-                    }
-                }
-                
-                // 如果没有找到合适的替换，使用默认视频
-                if (!videoUrl) {
-                    videoUrl = 'https://download.like-sports.com/leaderboard/v1/sample-video.mp4';
-                }
-                
-                currentVideoUrl.value = videoUrl;
+
+        const deleteSeason = async (seasonId, seasonName) => {
+            if (!confirm(`确定要删除赛季"${seasonName}"吗？\n\n此操作将同时删除该赛季下的所有排行榜条目，且无法恢复！`)) {
+                return;
             }
-            
-            currentVideoTitle.value = entry.nickname;
-            showVideoModal.value = true;
-        };
-        
-        // 关闭视频弹窗
-        const closeVideoModal = () => {
-            showVideoModal.value = false;
-            currentVideoUrl.value = '';
-            currentVideoTitle.value = '';
-        };
-        
-        // 显示通知
-        const showNotification = (message) => {
-            if (notification.value) {
-                notification.value.textContent = message;
-                notification.value.classList.add('show');
-                
-                setTimeout(() => {
-                    notification.value.classList.remove('show');
-                }, 3000);
-            }
-        };
-        
-        // 复制到剪贴板
-        const copyToClipboard = (text) => {
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text)
-                    .then(() => {
-                        showNotification('已复制链接到剪贴板');
-                    })
-                    .catch(err => {
-                        console.error('复制失败:', err);
-                        fallbackCopyTextToClipboard(text);
-                    });
-            } else {
-                fallbackCopyTextToClipboard(text);
-            }
-        };
-        
-        // 降级复制方法
-        const fallbackCopyTextToClipboard = (text) => {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            
             try {
-                document.execCommand('copy');
-                showNotification('已复制链接到剪贴板');
-            } catch (err) {
-                console.error('复制失败:', err);
-                showNotification('复制失败，请手动复制链接');
-            }
-            
-            document.body.removeChild(textArea);
-        };
-        
-        // 下载iOS应用
-        const downloadiOS = () => {
-            const appStoreUrl = 'https://apps.apple.com/app/like-sports/id6742750297';
-            const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            
-            if (isWeChat && isIOS) {
-                // 在微信 iOS 中，无法直接跳转，需要引导用户
-                copyToClipboard(appStoreUrl);
-                showNotification('已复制 App Store 链接，请点击右上角"..."选择"在浏览器中打开"，然后粘贴链接即可下载');
-            } else if (isMobile) {
-                // 非微信环境下的移动设备，直接跳转
-                window.location.href = appStoreUrl;
-            } else {
-                // 桌面浏览器，新窗口打开
-                window.open(appStoreUrl, '_blank');
+                saving.value = true;
+                error.value = '';
+                success.value = '';
+                const resp = await axios.delete(`${API_BASE}/seasons/${seasonId}`);
+                if (resp.data.code === 200) {
+                    success.value = resp.data.data || '删除成功';
+                    // 如果删除的是当前选中的赛季，清空选择
+                    const deletedSeason = seasons.value.find(s => s.id === seasonId);
+                    if (deletedSeason && deletedSeason.code === selectedSeasonCode.value) {
+                        selectedSeasonCode.value = '';
+                        leaderboard.value = [];
+                    }
+                    await loadSeasons();
+                } else {
+                    error.value = resp.data.message || '删除失败';
+                }
+            } catch (e) {
+                console.error(e);
+                const msg = e.response && e.response.data && e.response.data.message;
+                error.value = msg || '删除失败，请稍后重试';
+            } finally {
+                saving.value = false;
+                clearMessageLater();
             }
         };
-        
-        // 下载Android应用
-        const downloadAndroid = () => {
-            const downloadUrl = 'https://download.like-sports.com/app/official.apk';
-            copyToClipboard(downloadUrl);
-            showNotification('已复制下载链接，请打开手机浏览器下载安装');
-        };
-        
-        // 键盘事件处理
-        const handleKeydown = (event) => {
-            if (event.key === 'Escape' && showVideoModal.value) {
-                closeVideoModal();
+
+        const deleteEntry = async (entryId, nickname) => {
+            if (!confirm(`确定要删除"${nickname}"的排行榜记录吗？\n\n此操作无法恢复！`)) {
+                return;
+            }
+            try {
+                saving.value = true;
+                error.value = '';
+                success.value = '';
+                const resp = await axios.delete(`${API_BASE}/leaderboard/entry/${entryId}`);
+                if (resp.data.code === 200) {
+                    success.value = resp.data.data || '删除成功';
+                    await loadLeaderboard();
+                } else {
+                    error.value = resp.data.message || '删除失败';
+                }
+            } catch (e) {
+                console.error(e);
+                const msg = e.response && e.response.data && e.response.data.message;
+                error.value = msg || '删除失败，请稍后重试';
+            } finally {
+                saving.value = false;
+                clearMessageLater();
             }
         };
-        
-        // 生命周期
-        onMounted(() => {
-            loadSeasons();
-            window.addEventListener('keydown', handleKeydown);
+
+        onMounted(async () => {
+            await loadSeasons();
         });
-        
-        // 清理
-        onUnmounted(() => {
-            window.removeEventListener('keydown', handleKeydown);
-        });
-        
+
         return {
-            // 弹窗相关
-            showVideoModal,
-            currentVideoUrl,
-            currentVideoTitle,
-            openVideoModal,
-            closeVideoModal,
-            
-            // 排行榜相关
             seasons,
-            selectedSeason,
+            selectedSeasonCode,
             leaderboard,
-            currentSeason,
-            loading,
+            newSeason,
+            newEntry,
+            loadingSeasons,
+            loadingEntries,
+            saving,
             error,
+            success,
+            currentSeasonName,
+            loadSeasons,
             loadLeaderboard,
+            selectSeason,
+            createSeason,
+            saveEntry,
             calculateHitRate,
-            getRankClass,
-            getRankDisplay,
-            
-            // 下载相关
-            downloadiOS,
-            downloadAndroid,
-            
-            // 引用
-            notification
+            deleteSeason,
+            deleteEntry
         };
     }
-}).mount('#app');
+}).mount('#admin-app');
